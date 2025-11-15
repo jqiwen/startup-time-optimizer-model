@@ -1,12 +1,19 @@
-** Adaptive Container Startup Optimization (RL-based)
+# **Adaptive Container Startup Optimization (RL-based)**
 
-This project implements an adaptive container startup optimization system that uses a Reinforcement Learning (RL) model to automatically adjust container configuration parameters with the goal of minimizing container startup latency.
-The optimized deployment must operate under a CI/CD environment on IBM Cloud, ensuring that configuration updates are continuously applied through automated pipelines.
+This project implements an **adaptive container startup optimization system** that applies a Reinforcement Learning (RL) model to automatically tune container configuration parameters with the goal of **minimizing container startup latency**.
 
+The optimized deployment is designed to operate within a **CI/CD pipeline on IBM Cloud**, enabling continuous delivery of improved configurations while ensuring automation, reproducibility, and seamless updates.
 
-YAML Resource Parser
+---
 
-install ： pip install pyyaml
+## **YAML Resource Parser (Preprocessing Tool)**
+
+### **Installation**
+
+```bash
+pip install pyyaml
+```
+
 
 1. Navigate to the models/ directory.
 2. Run: python parse.py
