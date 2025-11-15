@@ -1,0 +1,18 @@
+<server description="AcmeAir">
+  <featureManager>
+    <feature>webProfile-10.0</feature>
+    <feature>microProfile-6.1</feature>
+  </featureManager>
+
+    <httpEndpoint id="defaultHttpEndpoint"
+                  host="*"
+                  httpPort="9080"
+                  httpsPort="-1" />
+
+    <!-- Health endpoints:
+         /health, /health/ready, /health/live -->
+    <webApplication location="acmeair.war" contextRoot="/"/>
+
+    <!-- Optional: quicker startup logging, no SSL -->
+    <applicationManager autoExpand="true"/>
+</server>
