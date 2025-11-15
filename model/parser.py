@@ -61,6 +61,7 @@ class YamlViewerApp:
 
         self.selected_file = None
         self.last_structured = None
+        self.save_path = None
 
         self.btn_select = tk.Button(
             root, text="Select YAML File",
@@ -168,22 +169,37 @@ class YamlViewerApp:
 
     def save_and_close(self):
         if not self.last_structured:
-            messagebox.showwarning("Please parse a file first")
+            messagebox.showwarning("No Data", "Please parse a file first.")
             return
 
-        output_dir = os.path.join(os.getcwd(), "data")
-        output_path = os.path.join(output_dir, "yaml-parse.json")
-        os.makedirs(output_dir, exist_ok=True)
+        # 第一次保存：弹窗选择路径
+        if not hasattr(self, "save_path") or self.save_path is None:
+            save_path = filedialog.asksaveasfilename(
+                title="Choose Save Location",
+                defaultextension=".json",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+            )
+            if not save_path:
+                return  # 用户取消保存
+            self.save_path = save_path
+        else:
+            save_path = self.save_path
+
+        # 创建目录（如果存在多级路径）
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
         try:
-            with open(output_path, "w", encoding="utf-8") as f:
+            with open(save_path, "w", encoding="utf-8") as f:
                 json.dump(self.last_structured, f, ensure_ascii=False, indent=2)
         except Exception as e:
-            messagebox.showerror("Fialed", f"Save Failed：\n{e}")
+            messagebox.showerror("Failed", f"Save Failed:\n{e}")
             return
 
-        # messagebox.showinfo("Success", f"Parse result has been saved to:\n{output_path}")
+        # 成功提示
+        messagebox.showinfo("Success", f"Parse result saved to:\n{save_path}")
+
         self.root.destroy()
+
         
         
 
