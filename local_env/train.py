@@ -524,9 +524,40 @@ def main():
     offline_env = OfflineStartupEnv(actions, filtered_df, baseline_value)
 
     if args.model == "dqn":
-        model = DQN("MlpPolicy", offline_env, verbose=0)
+        model = DQN(
+            "MlpPolicy",
+            offline_env,
+            learning_rate=5e-4,
+            buffer_size=50000,
+            batch_size=64,
+            learning_starts=500,
+            train_freq=1,
+            exploration_fraction=0.2,
+            exploration_final_eps=0.05,
+            target_update_interval=500,
+            gamma=0.98,
+            verbose=1
+        )
+
     else:
-        model = PPO("MlpPolicy", offline_env, verbose=0)
+        model = PPO(
+            "MlpPolicy",
+            offline_env,
+
+            learning_rate=3e-4,     # slightly aggressive, trains fast
+            n_steps=256,            # shorter rollouts for tabular-like data
+            batch_size=64,          # good general-purpose setting
+            n_epochs=10,            # enough optimization passes
+
+            gamma=0.99,
+            gae_lambda=0.95,
+
+            clip_range=0.2,         # normal PPO clipping
+            ent_coef=0.0,           # no entropy bonus (unnecessary)
+
+            verbose=1
+        )
+
 
     print(f"[PHASE A] Training {args.model.upper()} offline for {args.offline_steps} timesteps…")
     model.learn(total_timesteps=args.offline_steps, progress_bar=False)
@@ -539,9 +570,38 @@ def main():
     online_env = RealStartupEnv(actions, baseline_value)
 
     if args.model == "dqn":
-        model = DQN.load(offline_model_file, env=online_env)
+        model = DQN.load(
+            offline_model_file,
+            env=online_env,
+            learning_rate=1e-4,
+            exploration_fraction=0.05,
+            exploration_final_eps=0.01,
+            gamma=0.99,
+            buffer_size=2000,
+            batch_size=32,
+            target_update_interval=200,
+            verbose=1
+        )
+
     else:
-        model = PPO.load(offline_model_file, env=online_env)
+        model = PPO(
+            "MlpPolicy",
+            online_env,
+
+            learning_rate=1e-4,      # LOWER, avoids overshooting in noisy env
+            n_steps=32,              # SMALL rollout (each step is expensive)
+            batch_size=16,           # very small mini-batch
+            n_epochs=4,              # few updates per rollout → conservative
+
+            gamma=0.999,             # more weight on long-term improvement
+            gae_lambda=0.90,         # slightly more bias → more stable
+
+            clip_range=0.15,         # smaller clipping → safer updates
+            ent_coef=0.0,            # deterministic is fine for tuning
+
+            verbose=1
+        )
+
 
     callback = OnlineStepPrinterCallback(max_steps=args.online_steps)
     model.learn(

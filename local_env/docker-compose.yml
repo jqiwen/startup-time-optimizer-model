@@ -1,6 +1,6 @@
 services:
   app:
-    build: ./acmeair
+    build: ./test
     container_name: app
     ports:
       - "9080:9080"
