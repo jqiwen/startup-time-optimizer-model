@@ -4,7 +4,8 @@ import json
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext
 from pathlib import Path
-from popup_success import popup_success
+
+from .popup_success import popup_success
 
 try:
     import yaml
@@ -119,14 +120,14 @@ class YamlParserWindow:
         # info 
         self.bottom_label = tk.Label(
             bottom_frame, 
-            text="Step 2/2: The parsing result will be saved under ./local_env/yaml_parser_results.json.",
+            text="Step 2/2: The parsing result will be saved under ./local_env/yaml_parser_results.json",
             fg="gray",
         )
         self.bottom_label.pack(pady=(0, 5))
 
         self.btn_save = tk.Button(
             bottom_frame,
-            text="Save and Exit",
+            text="Save and Running Model",
             command=self.save_and_close,
             state=tk.DISABLED,
             width=15,

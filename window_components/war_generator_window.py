@@ -2,8 +2,8 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from pathlib import Path
 
-from war_generator import war_generator 
-from popup_success import popup_success
+from .war_generator import war_generator 
+from .popup_success import popup_success
 
 class WarGeneratorWindow:
 
@@ -53,7 +53,7 @@ class WarGeneratorWindow:
         # --- Build button ---
         build_btn = tk.Button(
             self.frame,
-            text="Build WAR & Setup App",
+            text="Build Local Environment",
             command=self.build_and_setup,
             height=2,
             width=25,
