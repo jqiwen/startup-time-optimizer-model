@@ -18,20 +18,22 @@ pip install pyyaml
 ```bash
 python optimizer.py
 ```
-then follow the step on popup window
+then follow the step on popup window.
 
 ### **Step 1: Generate Local Environment for Your Projec**
 
 1. The output location is fixed, it will always be generated under `./local_env/local_app`
-2. Click `Browse`, select your original project directory.
-3. Click `Build Local Environment`. The process will run in a terminal window. Once the build completes, a success notification will appear.
+2. Click **`Browse`**, select your original project directory.
+3. Click **`Build Local Environment`**. The process will run in a terminal window. Once the build completes, a success notification will appear.
 4. After the environment is successfully created, click **`Next`** to continue to Step 2.
 
-### **Second, parse your deploy yaml file**
-1. Click the top button, Select the YAML file from your project (e.g., your deployment or compose file).
-5. Specify the resource fields you want to extract (e.g., cpu,memory).
-6. The tool automatically parses the configuration values such as limits and reservations.
-7. Click Save and Exit to store the parsed results.
+### **Step 2: Parse Your Deployment YAML File**
+1. Click button **`Select YAML File`** on the top, choose a deployment-related YAML file (e.g., Docker Compose file).
+2. Enter the resource fields that can be optimized, and use **`;`** to separate (e.g., `cpu;memory`).
+3. Click **`PARSE`**, the tool will automatically extract resource configurations such as **limits** and **reservations** for each service. You may check the result on the context board below.
+4. Click **`Save and Exit`**, the parsed results will be saved to `./local_env/yaml_parser_results.json`.
+
+   
 The parsed resource configuration is then used as input to the RL model.
 
 RL Optimization
