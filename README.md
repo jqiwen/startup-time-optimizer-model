@@ -33,8 +33,10 @@ then follow the step on popup window.
 3. Click **`PARSE`**, the tool will automatically extract resource configurations such as **limits** and **reservations** for each service. You may check the result on the context board below.
 4. Click **`Save and Exit`**, the parsed results will be saved to `./local_env/yaml_parser_results.json`.
 
-   
-The parsed resource configuration is then used as input to the RL model.
+### **Step 3: Update local Docker Compose**
 
-RL Optimization
+### **Step 4: Start RL training on local environment**
 
+### **Step 5: Review Results and Decide Whether to Apply Changes**
+Once training completes, the optimized configuration will be displayed. The suggested reservation of CPU, memory, and compare with the original performance.
+User can choose if want to apply the change on their original project
