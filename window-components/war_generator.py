@@ -1,18 +1,3 @@
-#!/usr/bin/env python3
-"""
-setup_app.py
-
-Backend helper to:
-1) build a .war with Maven inside a Docker container
-2) create ../local_env/<app_name>/
-3) copy the .war there
-4) generate Dockerfile and server.xml
-
-Typical CLI usage (run from repo root OR from model/):
-
-    python model/setup_app.py --app-name acmeair --app-src ./acmeair
-"""
-
 import argparse
 import subprocess
 from pathlib import Path
@@ -21,10 +6,7 @@ from typing import Optional
 
 
 def run_maven_in_docker(app_src_dir: Path) -> None:
-    """
-    Run Maven inside the official maven:3.9-eclipse-temurin-17 Docker image
-    to build the project and produce a .war in target/.
-    """
+
     if not (app_src_dir / "pom.xml").is_file():
         raise FileNotFoundError(f"No pom.xml found in {app_src_dir}. Is this a Maven project?")
 
@@ -52,10 +34,7 @@ def run_maven_in_docker(app_src_dir: Path) -> None:
 
 
 def find_war_in_target(app_src_dir: Path) -> Path:
-    """
-    Look for *.war under app_src_dir/target.
-    If multiple wars exist, choose the first one.
-    """
+
     target_dir = app_src_dir / "target"
     if not target_dir.is_dir():
         raise FileNotFoundError(f"target/ directory not found in {app_src_dir}. Did the build succeed?")
@@ -74,9 +53,7 @@ def ensure_dir(path: Path) -> None:
 
 
 def render_dockerfile(app_name: str, war_name: str, container_port: int = 9080) -> str:
-    """
-    Generate a simple Dockerfile using Open Liberty as base.
-    """
+
     base_image = "icr.io/appcafe/open-liberty:full-java11-openj9-ubi"
 
     content = f"""# Auto-generated Dockerfile for {app_name}
@@ -132,7 +109,7 @@ def render_server_xml(app_name: str, war_name: str, context_root: Optional[str] 
     return content
 
 
-def setup_app(app_name: str, app_src_dir: Path) -> Path:
+def war_generator(app_name: str, app_src_dir: Path) -> Path:
     """
     Main function used by parser.py and CLI.
 
@@ -147,7 +124,7 @@ def setup_app(app_name: str, app_src_dir: Path) -> Path:
     that contains this file (model/), so local_env is ../local_env.
     Returns the path to local_env/<app_name>/.
     """
-    # model/setup_app.py -> parents[0]=model, parents[1]=repo root
+    # model/war_generator.py -> parents[0]=model, parents[1]=repo root
     repo_root = Path(__file__).resolve().parents[1]
 
     print(f"[INFO] Setting up app '{app_name}' from source: {app_src_dir}")
@@ -202,7 +179,7 @@ def main():
     if not app_src_dir.is_dir():
         raise NotADirectoryError(f"Invalid app source directory: {app_src_dir}")
 
-    setup_app(app_name, app_src_dir)
+    war_generator(app_name, app_src_dir)
 
 
 if __name__ == "__main__":

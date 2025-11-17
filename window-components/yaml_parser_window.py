@@ -1,8 +1,10 @@
 import os
-import json
 import sys
+import json
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext
+from pathlib import Path
+from popup_success import popup_success
 
 try:
     import yaml
@@ -10,10 +12,11 @@ except ImportError:
     print("Please install PyYAML first: pip install pyyaml")
     sys.exit(1)
 
+
 ALLOWED_EXT = {".yml", ".yaml"}
 
-
 def parse_resources_from_yaml(data, resource_fields):
+
     results = []
 
     if not isinstance(data, dict):
@@ -39,6 +42,7 @@ def parse_resources_from_yaml(data, resource_fields):
             limit_val = limits.get(field)
             resv_val = reservations.get(field)
 
+            # specific cpu / cpus
             if field.lower() == "cpu":
                 limit_val = limits.get("cpus", limits.get("cpu"))
                 resv_val = reservations.get("cpus", reservations.get("cpu"))
@@ -52,42 +56,55 @@ def parse_resources_from_yaml(data, resource_fields):
 
     return results
 
+class YamlParserWindow:
 
-class YamlViewerApp:
-    def __init__(self, root):
+    def __init__(self, root: tk.Tk):
+
         self.root = root
-        self.root.title("YAML File Parser")
-        self.root.geometry("950x600")
+        # self.on_back = on_back
 
         self.selected_file = None
         self.last_structured = None
         self.save_path = None
 
+        self.frame = tk.Frame(root)
+
+        # select file button
+        top_area = tk.Frame(self.frame)
+        top_area.pack(fill=tk.X, pady=(15, 5))
         self.btn_select = tk.Button(
-            root, text="Select YAML File",
+            top_area,
+            text="Select YAML File",
             command=self.select_file,
-            height=2, width=25
+            height=1,
+            width=20,
         )
-        self.btn_select.pack(pady=(20, 10))
+        self.btn_select.pack(pady=5)
 
-        self.file_label = tk.Label(root, text="No Selected File")
-        self.file_label.pack(pady=(0, 10))
+        # file path
+        self.file_label = tk.Label(top_area, text="No Selected File")
+        self.file_label.pack()
 
-        fields_frame = tk.Frame(root)
-        fields_frame.pack(pady=(0, 10))
+        # resource fields 
+        fields_frame = tk.Frame(self.frame)
+        fields_frame.pack(pady=(5, 10))
 
-        tk.Label(fields_frame, text="Resource fields (use ',' to seperate ):").pack(side=tk.LEFT)
+        tk.Label(fields_frame, text="Resource fields (use ';' to separate):").pack(side=tk.LEFT)
         self.fields_entry = tk.Entry(fields_frame, width=30)
-        self.fields_entry.insert(0, "cpu,memory")
+        self.fields_entry.insert(0, "cpu;memory")
         self.fields_entry.pack(side=tk.LEFT, padx=5)
 
         self.btn_parse = tk.Button(
-            fields_frame, text="PARSE",
-            command=self.parse_selected, height=1, width=14
+            fields_frame,
+            text="PARSE",
+            command=self.parse_selected,
+            height=1,
+            width=14,
         )
         self.btn_parse.pack(side=tk.LEFT, padx=(10, 0))
 
-        text_frame = tk.Frame(root)
+        # display content area
+        text_frame = tk.Frame(self.frame)
         text_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 5))
 
         self.text_box = scrolledtext.ScrolledText(
@@ -95,32 +112,40 @@ class YamlViewerApp:
         )
         self.text_box.pack(fill=tk.BOTH, expand=True)
 
+        # bottom button
+        bottom_frame = tk.Frame(self.frame)
+        bottom_frame.pack(pady=(5, 5))
+
+        # info 
+        self.bottom_label = tk.Label(
+            bottom_frame, 
+            text="Step 2/2: The parsing result will be saved under ./local_env/yaml_parser_results.json.",
+            fg="gray",
+        )
+        self.bottom_label.pack(pady=(0, 5))
+
         self.btn_save = tk.Button(
-            root,
+            bottom_frame,
             text="Save and Exit",
             command=self.save_and_close,
-            state=tk.DISABLED
+            state=tk.DISABLED,
+            width=15,
         )
-        self.btn_save.pack(pady=(5, 5))
+        self.btn_save.pack()
 
-        self.bottom_label = tk.Label(
-            root,
-            text="result will be saved to ./data/yaml-parse.json",
-            fg="gray"
-        )
-        self.bottom_label.pack(pady=(0, 10))
+
 
     def select_file(self):
         file_path = filedialog.askopenfilename(
             title="Select YAML File",
-            filetypes=[("YAML files", "*.yml *.yaml ")]
+            filetypes=[("YAML files", "*.yml *.yaml")],
         )
         if not file_path:
             return
 
         ext = os.path.splitext(file_path)[1].lower()
         if ext not in ALLOWED_EXT:
-            messagebox.showerror("File Type Error", "only support .yml / .yaml File")
+            messagebox.showerror("File Type Error", "Only support .yml / .yaml files.")
             return
 
         self.selected_file = file_path
@@ -131,11 +156,11 @@ class YamlViewerApp:
 
     def parse_selected(self):
         if not self.selected_file:
-            messagebox.showwarning("No Selected File", "Please select a YAML File")
+            messagebox.showwarning("No Selected File", "Please select a YAML file.")
             return
 
         field_str = self.fields_entry.get().strip()
-        resource_fields = [f.strip() for f in field_str.split(",") if f.strip()]
+        resource_fields = [f.strip() for f in field_str.split(";") if f.strip()]
 
         self.load_and_parse_yaml(self.selected_file, resource_fields)
 
@@ -144,7 +169,7 @@ class YamlViewerApp:
             with open(file_path, "r", encoding="utf-8") as f:
                 data = yaml.safe_load(f)
         except Exception as e:
-            messagebox.showerror("Parse Error", f"Fail to read of parse YAML: \n{e}")
+            messagebox.showerror("Parse Error", f"Fail to read or parse YAML:\n{e}")
             return
 
         results = parse_resources_from_yaml(data, resource_fields)
@@ -152,7 +177,7 @@ class YamlViewerApp:
         self.text_box.delete("1.0", tk.END)
 
         if not results:
-            self.text_box.insert(tk.END, "Not find deploy.resources \n")
+            self.text_box.insert(tk.END, "Not find deploy.resources\n")
             self.btn_save.config(state=tk.DISABLED)
             return
 
@@ -164,7 +189,6 @@ class YamlViewerApp:
 
         self.last_structured = structured
         self.btn_save.config(state=tk.NORMAL)
-
         self.text_box.insert(tk.END, json.dumps(structured, indent=2, ensure_ascii=False))
 
     def save_and_close(self):
@@ -172,20 +196,20 @@ class YamlViewerApp:
             messagebox.showwarning("No Data", "Please parse a file first.")
             return
 
-        # 第一次保存：弹窗选择路径
-        if not hasattr(self, "save_path") or self.save_path is None:
-            save_path = filedialog.asksaveasfilename(
-                title="Choose Save Location",
-                defaultextension=".json",
-                filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
-            )
-            if not save_path:
-                return  # 用户取消保存
-            self.save_path = save_path
-        else:
-            save_path = self.save_path
+        # if not self.save_path:
+        #     save_path = filedialog.asksaveasfilename(
+        #         title="Choose Save Location",
+        #         defaultextension=".json",
+        #         filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+        #     )
+        #     if not save_path:
+        #         return
+        #     self.save_path = save_path
+        # else:
+        #     save_path = self.save_path
 
-        # 创建目录（如果存在多级路径）
+        parent_path = Path(__file__).resolve().parent.parent
+        save_path = parent_path / "local_env" / "yaml_parser_results.json"
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
         try:
@@ -195,15 +219,6 @@ class YamlViewerApp:
             messagebox.showerror("Failed", f"Save Failed:\n{e}")
             return
 
-        # 成功提示
-        messagebox.showinfo("Success", f"Parse result saved to:\n{save_path}")
+        popup_success(self.root, f"File has been created under ./local_env/yaml_parser_results.json",on_close=self.root.destroy)
 
-        self.root.destroy()
-
-        
-        
-
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = YamlViewerApp(root)
-    root.mainloop()
+        # self.root.destroy()
