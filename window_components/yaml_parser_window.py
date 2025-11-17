@@ -127,7 +127,7 @@ class YamlParserWindow:
 
         self.btn_save = tk.Button(
             bottom_frame,
-            text="Save and Running Model",
+            text="Save and Run",
             command=self.save_and_close,
             state=tk.DISABLED,
             width=15,
