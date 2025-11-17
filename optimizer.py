@@ -11,10 +11,10 @@ except ImportError:
     print("Please install PyYAML first: pip install pyyaml")
     sys.exit(1)
 
-from yaml_parser_window import YamlParserWindow 
-from war_generator_window import WarGeneratorWindow 
+from window_components.yaml_parser_window import YamlParserWindow 
+from window_components.war_generator_window import WarGeneratorWindow 
 
-from popup_success import popup_success
+from window_components.popup_success import popup_success
 
 def main():
     root = tk.Tk()
