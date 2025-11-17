@@ -18,7 +18,7 @@ pip install pyyaml
 ```bash
 python optimizer.py
 ```
-then follow the step on popup window.
+Follow the 2 steps on popup window to start model training: 
 
 ### **Step 1: Generate Local Environment for Your Projec**
 
