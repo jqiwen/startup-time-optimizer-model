@@ -6,15 +6,23 @@ The optimized deployment is designed to operate within a **CI/CD pipeline on IBM
 
 ---
 
-## **YAML Resource Parser (Preprocessing Tool)**
-
-### **Installation**
+## **Installation**
 
 ```bash
 pip install pyyaml
 ```
+---
 
+## **Execute**
 
+```bash
+python optimizer.py
+```
+then follow the step on popup window
+
+### **First, generate local environment for your projec**
+
+### **Second, parse your deploy yaml file**
 1. Navigate to the models/ directory.
 2. Run: python parse.py
 3. A pop-up window will appear.
