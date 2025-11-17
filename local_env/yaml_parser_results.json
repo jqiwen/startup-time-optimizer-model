@@ -1,0 +1,50 @@
+[
+  {
+    "app": {
+      "cpu": {
+        "limit": "1.0",
+        "reservation": "0.25"
+      },
+      "memory": {
+        "limit": "1G",
+        "reservation": "512M"
+      }
+    }
+  },
+  {
+    "sidecar": {
+      "cpu": {
+        "limit": null,
+        "reservation": null
+      },
+      "memory": {
+        "limit": null,
+        "reservation": null
+      }
+    }
+  },
+  {
+    "prometheus": {
+      "cpu": {
+        "limit": null,
+        "reservation": null
+      },
+      "memory": {
+        "limit": null,
+        "reservation": null
+      }
+    }
+  },
+  {
+    "grafana": {
+      "cpu": {
+        "limit": null,
+        "reservation": null
+      },
+      "memory": {
+        "limit": null,
+        "reservation": null
+      }
+    }
+  }
+]
