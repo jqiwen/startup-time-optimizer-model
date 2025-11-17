@@ -31,12 +31,21 @@ then follow the step on popup window.
 1. Click button **`Select YAML File`** on the top, choose a deployment-related YAML file (e.g., Docker Compose file).
 2. Enter the resource fields that can be optimized, and use **`;`** to separate (e.g., `cpu;memory`).
 3. Click **`PARSE`**, the tool will automatically extract resource configurations such as **limits** and **reservations** for each service. You may check the result on the context board below.
-4. Click **`Save and Exit`**, the parsed results will be saved to `./local_env/yaml_parser_results.json`.
+4. Click **`Save and Start Training`**, the parsed results will be saved to `./local_env/yaml_parser_results.json`.
 
 ### **Step 3: Update local Docker Compose**
 
 ### **Step 4: Start RL training on local environment**
 
 ### **Step 5: Review Results and Decide Whether to Apply Changes**
+
+
+---
+
+### **RL Model Training**
+
+Once the training start, it will generate a local docker componser first, that includes ... for local envirenoment.
+Then based on the knowledge base, follow the MAKP-K, RL learn.
+
 Once training completes, the optimized configuration will be displayed. The suggested reservation of CPU, memory, and compare with the original performance.
 User can choose if want to apply the change on their original project
