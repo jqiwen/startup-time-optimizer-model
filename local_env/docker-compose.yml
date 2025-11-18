@@ -1,6 +1,6 @@
 services:
   app:
-    build: ./test
+    build: ./local_app
     container_name: app
     ports:
       - "9080:9080"
@@ -22,7 +22,7 @@ services:
     build: ./sidecar
     container_name: sidecar
     environment:
-      APP_NAME: "acmeair"
+      APP_NAME: "local_app"
       HEALTH_URL: "http://app:9080/health/ready"
       CPUS: "1.0"
       MEMORY: "1G"
