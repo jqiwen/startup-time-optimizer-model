@@ -1,0 +1,16 @@
+[
+  {
+    "cpu": {
+      "limit": "1.0",
+      "reservation": "0.25"
+    },
+    "memory": {
+      "limit": "1G",
+      "reservation": "512M"
+    },
+    "heap": {
+      "limit": "1G",
+      "reservation": "512M"
+    }
+  }
+]

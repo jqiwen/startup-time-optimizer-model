@@ -11,8 +11,9 @@ except ImportError:
     print("Please install PyYAML first: pip install pyyaml")
     sys.exit(1)
 
-from window_components.yaml_parser_window import YamlParserWindow 
+# from window_components.yaml_parser_window import YamlParserWindow 
 from window_components.war_generator_window import WarGeneratorWindow 
+from window_components.resource_input_window import ResourceInputWindow
 
 from window_components.popup_success import popup_success
 
@@ -33,7 +34,7 @@ def main():
         yaml_step.frame.pack(fill=tk.BOTH, expand=True)
 
     setup_step = WarGeneratorWindow(root, on_next=show_yaml)
-    yaml_step = YamlParserWindow(root)
+    yaml_step = ResourceInputWindow(root)
 
     setup_step.frame.pack(fill=tk.BOTH, expand=True)
 

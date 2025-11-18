@@ -79,7 +79,7 @@ class WarGeneratorWindow:
             command=self.go_next,
             height=1,
             width=20,
-            state=tk.DISABLED,
+            # state=tk.DISABLED,
         )
         self.next_btn.place(relx=0.5, rely=0.90, anchor="center")
 
