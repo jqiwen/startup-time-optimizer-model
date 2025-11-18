@@ -8,8 +8,17 @@ The optimized deployment is designed to operate within a **CI/CD pipeline on IBM
 
 ## **Installation**
 
+Make sure your docking is running, and install the following packages
 ```bash
 pip install pyyaml
+pip install stable-baselines3[extra]
+pip install gymnasium
+pip install pandas numpy requests matplotlib
+```
+Build a local image
+```bash
+cd local_env\sidecar
+docker build -t project-sidecar:latest .
 ```
 ---
 
