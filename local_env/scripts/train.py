@@ -255,6 +255,18 @@ def restart_sidecar(cpus: str, memory: str, heap: str, network: str) -> None:
     if rc != 0:
         print(f"[WARN] Failed to start sidecar: {err.strip()}")
 
+def moving_average(values, window):
+    """Simple moving average for smoothing training curves."""
+    import numpy as np
+    if not values:
+        return []
+    arr = np.asarray(values, dtype=float)
+    if window <= 1 or window > len(arr):
+        return arr
+    kernel = np.ones(window) / window
+    # 'valid' so we don't introduce edge artifacts
+    return np.convolve(arr, kernel, mode="valid")
+
 
 # ==============================================================================
 # Offline environment (CSV-only, no Docker)
@@ -534,7 +546,7 @@ class HierarchicalStartupEnv(gym.Env):
 
         # High-level action space: which parameter(s) to change
         # 0: CPU, 1: Memory, 2: Heap, 3: Memory+Heap
-        self.action_space = spaces.Discrete(4)
+        self.action_space = spaces.Discrete(8)
         # Observation space is the same as the base env
         self.observation_space = base_env.observation_space
 
@@ -566,6 +578,14 @@ class HierarchicalStartupEnv(gym.Env):
             return Action(cpus=curr.cpus, memory=curr.memory, heap=ppo_cfg.heap)
         elif hi_action == 3:  # Memory + Heap
             return Action(cpus=curr.cpus, memory=ppo_cfg.memory, heap=ppo_cfg.heap)
+        elif hi_action == 4: #CPU + Memory
+            return Action(cpus=ppo_cfg.cpus, memory=ppo_cfg.memory, heap=curr.heap)
+        elif hi_action == 5: #CPU + Heap
+            return Action(cpus=ppo_cfg.cpus, memory=curr.memory, heap=ppo_cfg.heap)
+        elif hi_action == 6: #CPU + Memory + Heap
+            return Action(cpus=ppo_cfg.cpus, memory=ppo_cfg.memory, heap=ppo_cfg.heap)
+        elif hi_action == 7: #None
+            return Action(cpus=curr.cpus, memory=curr.memory, heap=curr.heap)
         else:
             # Fallback: take PPO config directly
             return ppo_cfg
@@ -653,8 +673,9 @@ class TrainingMetricsCallback(BaseCallback):
             print(f"[{self.phase}] Step {self.num_timesteps}, reward={r:.3f}, startup={startup}")
 
         if self.max_steps is not None:
-            return self.num_timesteps < self.max_steps
+            return self.n_calls < self.max_steps   # ← 这里改了
         return True
+
 
 
 # ==============================================================================
@@ -973,9 +994,16 @@ def main() -> None:
     # Save final high-level model (only one) to ../model_results/model.zip
     # =========================================================================
 
-    final_model_file = os.path.join(model_results_dir, "model.zip")
-    dqn_model.save(final_model_file)
-    print(f"[SAVE] Saved final high-level DQN model to {final_model_file}")
+    ppo_model_file = os.path.join(model_results_dir, "ppo_model.zip")
+    dqn_model_file = os.path.join(model_results_dir, "dqn_model.zip")
+
+    # Low-level PPO (after offline + online fine-tuning)
+    ppo_model.save(ppo_model_file)
+    print(f"[SAVE] Saved final low-level PPO model to {ppo_model_file}")
+
+    # High-level DQN (after offline + online fine-tuning)
+    dqn_model.save(dqn_model_file)
+    print(f"[SAVE] Saved final high-level DQN model to {dqn_model_file}")
 
     # =========================================================================
     # Plots: reward_curves.png, loss_curves.png, startup_time.png
@@ -995,8 +1023,9 @@ def main() -> None:
         plt.figure(figsize=(10, 6))
         for label, cb in series:
             if cb.rewards:
-                steps = list(range(1, len(cb.rewards) + 1))
-                plt.plot(steps, cb.rewards, marker="o", markersize=2, linewidth=1, label=label)
+                smoothed = moving_average(cb.rewards, window=20)
+                steps = list(range(1, len(smoothed) + 1))
+                plt.plot(steps, smoothed, marker="o", markersize=2, linewidth=1, label=label)
         plt.xlabel("Timestep")
         plt.ylabel("Reward (normalized)" if normalize_reward else "Reward")
         plt.title("Reward curves (offline + online, hierarchical)")
@@ -1012,8 +1041,9 @@ def main() -> None:
         plt.figure(figsize=(10, 6))
         for label, cb in series:
             if cb.loss_proxy:
-                steps = list(range(1, len(cb.loss_proxy) + 1))
-                plt.plot(steps, cb.rewards, marker="o", markersize=2, linewidth=1, label=label)
+                smoothed = moving_average(cb.loss_proxy, window=20)
+                steps = list(range(1, len(smoothed) + 1))
+                plt.plot(steps, smoothed, marker="o", markersize=2, linewidth=1, label=label)
         plt.xlabel("Timestep")
         plt.ylabel("Loss proxy (-reward)")
         plt.title("Loss curves (offline + online, hierarchical)")
@@ -1040,8 +1070,10 @@ def main() -> None:
 
             if valid_points:
                 s_steps, s_vals = zip(*valid_points)
-                plt.plot(s_steps, s_vals, marker="o", markersize=2, linewidth=1, label=label)
-
+                # Smooth startup times
+                smoothed_vals = moving_average(s_vals, window=20)
+                smoothed_steps = list(range(1, len(smoothed_vals) + 1))
+                plt.plot(smoothed_steps, smoothed_vals, marker="o", markersize=2, linewidth=1, label=label)
         plt.xlabel("Timestep")
         plt.ylabel("Startup time (s)")
         plt.title("Startup time curves (offline + online, hierarchical)")

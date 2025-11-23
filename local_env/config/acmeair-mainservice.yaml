@@ -1,0 +1,21 @@
+app_name: acmeair
+namespace: acmeair-group11
+deployment: acmeair-mainservice
+
+heap_env:
+  name: JVM_ARGS
+  template: "-Xms{heap} -Xmx{heap}"
+
+resources:
+  cpu:
+    min: 0.5
+    max: 2.0
+  memory:
+    min: "512Mi"
+    max: "2Gi"
+  heap:
+    min: "256M"
+    max: "1G"
+
+# Optional; ignored for training because we auto-measure from production
+baseline_startup: 0.0
