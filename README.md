@@ -22,12 +22,12 @@ docker build -t project-sidecar:latest .
 ```
 ---
 
-## **Execute**
+## **Execution**
 
 ```bash
 python optimizer.py
 ```
-Follow the 2 steps on popup window to start model training: 
+Follow the 2 steps on popup window to prepare the model training: 
 
 ### **Step 1: Generate Local Environment for Your Projec**
 
@@ -36,13 +36,15 @@ Follow the 2 steps on popup window to start model training:
 3. Click **`Build Local Environment`**. The process will run in a terminal window. Once the build completes, a success notification will appear.
 4. After the environment is successfully created, click **`Next`** to continue to Step 2.
 
-### **Step 2: Parse Your Deployment YAML File**
-1. Click button **`Select YAML File`** on the top, choose a deployment-related YAML file (e.g., Docker Compose file).
-2. Enter the resource fields that can be optimized, and use **`;`** to separate (e.g., `cpu;memory`).
-3. Click **`PARSE`**, the tool will automatically extract resource configurations such as **limits** and **reservations** for each service. You may check the result on the context board below.
-4. Click **`Save and Start Training`**, the parsed results will be saved to `./local_env/yaml_parser_results.json`.
+### **Step 2: Input your original yaml resource File**
+1. input your original reservation and limit for CPU, Memory, and Heap
+2. Click `Generate JSON` to check corretness
+3. Click **`Save and Run`**, local docker will be updated automatically.
 
-### **Step 3: Update local Docker Compose**
+
+``` bash
+python train.py
+```
 
 ### **Step 4: Start RL training on local environment**
 
