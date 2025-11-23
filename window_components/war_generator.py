@@ -2,13 +2,19 @@ import argparse
 import subprocess
 from pathlib import Path
 import shutil
-from typing import Optional
+from typing import Optional, List, Tuple
 
+
+# ---------- Maven build ----------
 
 def run_maven_in_docker(app_src_dir: Path) -> None:
-
+    """
+    Run `mvn package` inside Docker for a Maven project.
+    """
     if not (app_src_dir / "pom.xml").is_file():
-        raise FileNotFoundError(f"No pom.xml found in {app_src_dir}. Is this a Maven project?")
+        raise FileNotFoundError(
+            f"No pom.xml found in {app_src_dir}. Is this a Maven project root?"
+        )
 
     abs_src = app_src_dir.resolve()
 
@@ -20,67 +26,95 @@ def run_maven_in_docker(app_src_dir: Path) -> None:
         f"{abs_src}:/ws",
         "-w",
         "/ws",
-        "maven:3.9-eclipse-temurin-17",
+        # You already changed this to JDK 25:
+        "maven:3.9-eclipse-temurin-25",
         "mvn",
         "-DskipTests",
         "package",
     ]
 
     print(f"[INFO] Running Maven build in Docker:\n  {' '.join(str(c) for c in cmd)}")
-    try:
-        subprocess.run(cmd, check=True)
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Maven build failed with exit code {e.returncode}") from e
+    subprocess.run(cmd, check=True)
 
 
-def find_war_in_target(app_src_dir: Path) -> Path:
+# ---------- Artifact discovery (WAR or JAR) ----------
 
-    target_dir = app_src_dir / "target"
-    if not target_dir.is_dir():
-        raise FileNotFoundError(f"target/ directory not found in {app_src_dir}. Did the build succeed?")
+def _pick_candidate(candidates: List[Path], app_src_dir: Path) -> Path:
+    """
+    Choose a 'best' candidate from a list of artifacts.
+    """
+    if not candidates:
+        raise FileNotFoundError(
+            f"No artifacts found under {app_src_dir}. Did the build succeed?"
+        )
 
-    war_files = list(target_dir.glob("*.war"))
-    if not war_files:
-        raise FileNotFoundError(f"No .war files found in {target_dir}")
+    candidates = sorted(candidates)
 
-    war_file = war_files[0]
-    print(f"[INFO] Found WAR: {war_file}")
-    return war_file
+    # prefer things under a "*web*" module if any
+    for c in candidates:
+        if "web" in c.parent.parent.name.lower() or "web" in c.parent.name.lower():
+            return c
+
+    # otherwise prefer file containing project name
+    root_name = app_src_dir.name.lower()
+    for c in candidates:
+        if root_name in c.name.lower():
+            return c
+
+    return candidates[0]
 
 
-def ensure_dir(path: Path) -> None:
-    path.mkdir(parents=True, exist_ok=True)
+def find_artifact(app_src_dir: Path) -> Tuple[Path, str]:
+    """
+    Try to find a deployable artifact under app_src_dir/**/target.
+    Returns (path, kind) where kind in {"war", "jar"}.
+    """
+    print("[INFO] Searching for artifacts under:", app_src_dir)
+
+    war_candidates = list(app_src_dir.rglob("target/*.war"))
+    for c in war_candidates:
+        print(f"  [INFO] WAR candidate: {c}")
+
+    if war_candidates:
+        chosen = _pick_candidate(war_candidates, app_src_dir)
+        print(f"[INFO] Selected WAR: {chosen}")
+        return chosen, "war"
+
+    jar_candidates = list(app_src_dir.rglob("target/*.jar"))
+    for c in jar_candidates:
+        print(f"  [INFO] JAR candidate: {c}")
+
+    if jar_candidates:
+        chosen = _pick_candidate(jar_candidates, app_src_dir)
+        print(f"[INFO] Selected JAR: {chosen}")
+        return chosen, "jar"
+
+    raise FileNotFoundError(
+        f"No .war or .jar found under {app_src_dir}/**/target. "
+        f"Check that mvn package produced an artifact."
+    )
 
 
-def render_dockerfile(app_name: str, war_name: str, container_port: int = 9080) -> str:
+# ---------- Dockerfile / server.xml templates ----------
 
+def render_dockerfile_for_war(app_name: str, war_name: str, container_port: int = 9080) -> str:
     base_image = "icr.io/appcafe/open-liberty:full-java11-openj9-ubi"
-
-    content = f"""# Auto-generated Dockerfile for {app_name}
+    return f"""# Auto-generated Dockerfile for {app_name} (WAR on Open Liberty)
 FROM {base_image}
 
-# Optional JVM tuning environment variables
 ENV JVM_HEAP_MB=1024
 ENV GC_POLICY=gencon
 
-# Copy the WAR into Liberty dropins
 COPY {war_name} /config/dropins/{war_name}
 
 EXPOSE {container_port}
-
-# Default CMD comes from the base Liberty image
 """
-    return content
 
 
 def render_server_xml(app_name: str, war_name: str, context_root: Optional[str] = None) -> str:
-    """
-    Generate a very simple server.xml for Open Liberty.
-    """
     if context_root is None:
         context_root = f"/{app_name}"
-
-    content = f"""<?xml version="1.0" encoding="UTF-8"?>
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
 <server description="{app_name} server">
 
     <featureManager>
@@ -97,82 +131,101 @@ def render_server_xml(app_name: str, war_name: str, context_root: Optional[str] 
     <webApplication id="{app_name}"
                     location="{war_name}"
                     contextRoot="{context_root}" />
-
-    <!-- Example JVM tuning (optional):
-    <jvmOptions xms="${{env.JVM_HEAP_MB}}m"
-                xmx="${{env.JVM_HEAP_MB}}m"
-                genericJvmArguments="-Xgc:${{env.GC_POLICY}}" />
-    -->
-
 </server>
 """
-    return content
+
+
+def render_dockerfile_for_jar(app_name: str, jar_name: str, container_port: int = 9080) -> str:
+    """
+    Simple Dockerfile for a Spring Boot style fat JAR.
+    """
+    return f"""# Auto-generated Dockerfile for {app_name} (Spring Boot JAR)
+FROM eclipse-temurin:25-jre
+
+WORKDIR /app
+
+ENV JVM_ARGS=""
+# Force Spring Boot to listen on 9080 so the rest of the stack can stay the same
+ENV SERVER_PORT={container_port}
+
+COPY {jar_name} /app/app.jar
+
+EXPOSE {container_port}
+
+ENTRYPOINT ["sh", "-c", "java $JVM_ARGS -Dserver.port=$SERVER_PORT -jar /app/app.jar"]
+"""
+
+
+# ---------- Main generator ----------
+
+def ensure_dir(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
 
 
 def war_generator(app_name: str, app_src_dir: Path) -> Path:
     """
-    Main function used by parser.py and CLI.
-
-    Steps:
-      1. run Maven in Docker to build .war
-      2. find .war in target/
-      3. create <repo_root>/local_env/<app_name>/
-      4. copy .war
-      5. generate Dockerfile and server.xml
-
-    repo_root is ALWAYS taken as the parent of the directory
-    that contains this file (model/), so local_env is ../local_env.
-    Returns the path to local_env/<app_name>/.
+    Build the project, then prepare ../local_env/<app_name>/ with either:
+    - <app_name>.war + Dockerfile + server.xml   (WAR flow)
+    - <app_name>.jar + Dockerfile                (JAR flow, e.g. Spring Boot)
     """
-    # model/war_generator.py -> parents[0]=model, parents[1]=repo root
     repo_root = Path(__file__).resolve().parents[1]
-
     print(f"[INFO] Setting up app '{app_name}' from source: {app_src_dir}")
     print(f"[INFO] Repo root assumed as: {repo_root}")
 
     app_src_dir = app_src_dir.resolve()
 
-    # 1. Run Maven build inside Docker
+    # 1. Build
     run_maven_in_docker(app_src_dir)
 
-    # 2. Find WAR
-    war_file = find_war_in_target(app_src_dir)
+    # 2. Find artifact
+    artifact_path, kind = find_artifact(app_src_dir)
 
-    # 3. Create ../local_env/<app_name>/
+    # 3. Prepare target directory
     local_env_dir = repo_root / "local_env"
     ensure_dir(local_env_dir)
     app_env_dir = local_env_dir / app_name
     ensure_dir(app_env_dir)
 
-    # 4. Copy WAR
-    target_war_name = f"{app_name}.war"
-    dest_war_path = app_env_dir / target_war_name
-    shutil.copy2(war_file, dest_war_path)
-    print(f"[INFO] Copied WAR to: {dest_war_path}")
+    if kind == "war":
+        target_name = f"{app_name}.war"
+        dest = app_env_dir / target_name
+        shutil.copy2(artifact_path, dest)
+        print(f"[INFO] Copied WAR to: {dest}")
 
-    # 5. Generate Dockerfile and server.xml
-    dockerfile_content = render_dockerfile(app_name, target_war_name)
-    (app_env_dir / "Dockerfile").write_text(dockerfile_content, encoding="utf-8")
-    print(f"[INFO] Generated Dockerfile at {app_env_dir / 'Dockerfile'}")
+        dockerfile_text = render_dockerfile_for_war(app_name, target_name)
+        (app_env_dir / "Dockerfile").write_text(dockerfile_text, encoding="utf-8")
+        server_xml_text = render_server_xml(app_name, target_name)
+        (app_env_dir / "server.xml").write_text(server_xml_text, encoding="utf-8")
+        print(f"[INFO] Generated Dockerfile and server.xml in {app_env_dir}")
 
-    server_xml_content = render_server_xml(app_name, target_war_name)
-    (app_env_dir / "server.xml").write_text(server_xml_content, encoding="utf-8")
-    print(f"[INFO] Generated server.xml at {app_env_dir / 'server.xml'}")
+    else:  # jar
+        target_name = f"{app_name}.jar"
+        dest = app_env_dir / target_name
+        shutil.copy2(artifact_path, dest)
+        print(f"[INFO] Copied JAR to: {dest}")
+
+        dockerfile_text = render_dockerfile_for_jar(app_name, target_name)
+        (app_env_dir / "Dockerfile").write_text(dockerfile_text, encoding="utf-8")
+        print(f"[INFO] Generated Dockerfile (JAR) in {app_env_dir}")
 
     print(f"[OK] Environment for app '{app_name}' created in {app_env_dir}")
     return app_env_dir
 
 
+# ---------- CLI ----------
+
 def main():
-    parser = argparse.ArgumentParser(description="Build WAR and create ../local_env/<app_name>/")
-    parser.add_argument("--app-name", required=True, help="Application name (e.g., acmeair)")
+    parser = argparse.ArgumentParser(
+        description="Build app and create ../local_env/<app_name>/ env (WAR or JAR)."
+    )
+    parser.add_argument("--app-name", required=True, help="Application name / env directory name.")
     parser.add_argument(
         "--app-src",
         required=True,
-        help="Path to Maven project directory (contains pom.xml)",
+        help="Path to Maven project root (e.g., ./spring-petclinic).",
     )
-    args = parser.parse_args()
 
+    args = parser.parse_args()
     app_name = args.app_name
     app_src_dir = Path(args.app_src).expanduser()
 

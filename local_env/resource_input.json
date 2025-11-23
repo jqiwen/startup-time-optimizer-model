@@ -1,15 +1,15 @@
 [
   {
     "cpu": {
-      "limit": "1.0",
+      "limit": "3",
       "reservation": "0.25"
     },
     "memory": {
-      "limit": "1G",
+      "limit": "2G",
       "reservation": "512M"
     },
     "heap": {
-      "limit": "1G",
+      "limit": "2G",
       "reservation": "512M"
     }
   }

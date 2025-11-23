@@ -7,7 +7,7 @@ g = Gauge("app_startup_seconds", "App startup time in seconds",
           ["app","cpus","memory", "heap"])
 
 APP_NAME = os.getenv("APP_NAME", "demo")
-TARGET = os.getenv("HEALTH_URL", "http://app:8080/healthz")
+TARGET = os.getenv("HEALTH_URL", "http://app:9080/healthz")
 CPUS = os.getenv("CPUS", "")
 MEM = os.getenv("MEMORY", "")
 HEAP = os.getenv("HEAP", "")

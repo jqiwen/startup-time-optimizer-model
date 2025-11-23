@@ -15,11 +15,4 @@
     <webApplication id="local_app"
                     location="local_app.war"
                     contextRoot="/local_app" />
-
-    <!-- Example JVM tuning (optional):
-    <jvmOptions xms="${env.JVM_HEAP_MB}m"
-                xmx="${env.JVM_HEAP_MB}m"
-                genericJvmArguments="-Xgc:${env.GC_POLICY}" />
-    -->
-
 </server>
