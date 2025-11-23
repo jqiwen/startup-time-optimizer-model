@@ -15,18 +15,27 @@ HEAP = os.getenv("HEAP", "")
 measured = False
 start_ts = time.time()
 
+def is_ready_status(code: int) -> bool:
+    """
+    Decide whether the status code means "the app is up".
+    Treat any non-5xx as up, so apps that return 401/403 for
+    unauthenticated users are still considered ready.
+    """
+    return code < 500
+
 def measure_once():
     global measured
     if measured:
         return
     try:
         r = requests.get(TARGET, timeout=0.5)
-        if r.status_code == 200:
+        if is_ready_status(r.status_code):
             elapsed = time.time() - start_ts
             g.labels(APP_NAME, CPUS, MEM, HEAP).set(elapsed)
             measured = True
     except Exception:
         pass
+
 
 @app.route("/metrics")
 def metrics():

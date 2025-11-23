@@ -7,24 +7,24 @@ services:
     healthcheck:
       test:
       - CMD-SHELL
-      - curl -fsS http://localhost:9080/health/ready || exit 1
+      - curl -fsS http://localhost:9080/local_app/ || exit 1
       interval: 3s
       timeout: 2s
       retries: 40
     deploy:
       resources:
         limits:
-          cpus: '3'
+          cpus: '0.5'
           memory: 2G
         reservations:
-          cpus: '0.25'
-          memory: 512M
+          cpus: '0.5'
+          memory: 1G
   sidecar:
     build: ./sidecar
     container_name: sidecar
     environment:
       APP_NAME: local_app
-      HEALTH_URL: http://app:9080/health/ready
+      HEALTH_URL: http://app:9080/local_app/
       CPUS: '1.0'
       MEMORY: 1G
     ports:

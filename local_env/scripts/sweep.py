@@ -91,8 +91,9 @@ APP_CONTAINER = "app"
 SIDECAR_CONTAINER = "sidecar"
 
 # Health check URLs (host and container versions)
-HEALTH_URL = "http://localhost:9080/health/ready"
-HEALTH_URL_CONTAINER = "http://app:9080/health/ready"
+HEALTH_URL = "http://localhost:9080/local_app/"
+HEALTH_URL_CONTAINER = "http://app:9080/local_app/"
+
 
 # Prometheus endpoint for querying metrics
 PROMETHEUS_QUERY_URL = "http://localhost:9090/api/v1/query"

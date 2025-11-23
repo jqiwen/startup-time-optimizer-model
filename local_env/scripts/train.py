@@ -60,8 +60,8 @@ from stable_baselines3.common.callbacks import BaseCallback  # type: ignore
 APP_CONTAINER = "app"
 SIDECAR_CONTAINER = "sidecar"
 
-HEALTH_URL_HOST = "http://localhost:9080/health/ready"      # from host
-HEALTH_URL_CONTAINER = "http://app:9080/health/ready"       # from sidecar
+HEALTH_URL_HOST = "http://localhost:9080/local_app/"
+HEALTH_URL_CONTAINER = "http://app:9080/local_app/"
 PROMETHEUS_QUERY_URL = "http://localhost:9090/api/v1/query"
 
 # Typical upper bound for startup seconds used for simple normalization of
@@ -140,17 +140,27 @@ def get_default_network() -> str:
 
 
 def wait_for_readiness(url: str, timeout: int = 300) -> bool:
-    """Poll the given health URL until it returns HTTP 200 or timeout is reached."""
+    """
+    Poll the given URL until the app is considered "ready".
+
+    We treat the app as ready as soon as the container responds with any
+    non-5xx status code (e.g., 200 OK, 3xx redirect, 401/403 unauthorized).
+    That means the server is up and accepting requests, even if it requires
+    authentication.
+    """
     start = time.time()
     while time.time() - start < timeout:
         try:
             resp = requests.get(url, timeout=3)
-            if resp.status_code == 200:
+            # consider 2xx, 3xx, 4xx (like 401) as "app is up"
+            if resp.status_code < 500:
                 return True
         except Exception:
+            # connection refused / timeout etc. => not ready yet
             pass
         time.sleep(2)
     return False
+
 
 
 def query_prometheus_startup(cpus: str, memory: str, heap: str, timeout: int = 120) -> float:
