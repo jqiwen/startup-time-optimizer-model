@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: acmeair-mainservice
+  namespace: acmeair-group11
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: acmeair
+  template:
+    metadata:
+      labels:
+        app: acmeair
+    spec:
+      containers:
+        - name: acmeair
+          image: icr.io/acmeair-group11/acmeair-mainservice:latest
+          ports:
+            - containerPort: 9080
+          env:
+            - name: JAVA_HEAP
+              value: "512M"  # Will be overridden by script
+          resources:
+            limits:
+              cpu: "2.0"
+              memory: "1Gi"
+            requests:
+              cpu: "2.0"
+              memory: "1Gi"

@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: acmeair-mainservice
+  namespace: acmeair-group11
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: acmeair
+  template:
+    metadata:
+      labels:
+        app: acmeair
+    spec:
+      containers:
+      - env:
+        - name: JAVA_HEAP
+          value: 256M
+        image: icr.io/acmeair-group11/acmeair-mainservice:latest
+        name: acmeair
+        ports:
+        - containerPort: 9080
+        resources:
+          limits:
+            cpu: '0.25'
+            memory: 256M
+          requests:
+            cpu: '0.25'
+            memory: 256M
