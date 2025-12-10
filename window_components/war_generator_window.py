@@ -13,7 +13,6 @@ class WarGeneratorWindow:
         self.on_next = on_next
         self.frame = tk.Frame(root)
 
-        # --- App name ---
         frame_app = tk.Frame(self.frame)
         frame_app.pack(pady=10)
         frame_app.place(relx=0.5, rely=0.15, anchor="center")
@@ -24,7 +23,6 @@ class WarGeneratorWindow:
         self.app_name_entry.config(state="disabled")  
         self.app_name_entry.pack(side=tk.LEFT, padx=5)
 
-        # Info label
         self.info_label = tk.Label(
             self.frame,
             text=(
@@ -36,8 +34,6 @@ class WarGeneratorWindow:
         )
         self.info_label.place(relx=0.5, rely=0.20, anchor="center")
 
-
-        # --- Maven project dir ---
         frame_src = tk.Frame(self.frame)
         frame_src.pack(pady=10)
         frame_src.place(relx=0.5, rely=0.25, anchor="center")
@@ -50,7 +46,6 @@ class WarGeneratorWindow:
         browse_btn = tk.Button(frame_src, text="Browse", command=self.browse_dir)
         browse_btn.pack(side=tk.LEFT)
 
-        # --- Build button ---
         build_btn = tk.Button(
             self.frame,
             text="Build Local Environment",
@@ -60,7 +55,6 @@ class WarGeneratorWindow:
         )
         build_btn.place(relx=0.5, rely=0.38, anchor="center")
 
-        # Info label
         self.info_label = tk.Label(
             self.frame,
             text=(
@@ -72,14 +66,13 @@ class WarGeneratorWindow:
         )
         self.info_label.place(relx=0.5, rely=0.80, anchor="center")
 
-        # --- Next button ---
         self.next_btn = tk.Button(
             self.frame,
             text="Next → Parse YAML",
             command=self.go_next,
             height=1,
             width=20,
-            # state=tk.DISABLED,
+            state=tk.DISABLED,
         )
         self.next_btn.place(relx=0.5, rely=0.90, anchor="center")
 
@@ -115,13 +108,6 @@ class WarGeneratorWindow:
             messagebox.showerror("Failed to set up app", f"{e}")
             return
 
-        # messagebox.showinfo(
-        #     "Success",
-        #     f"Environment for '{app_name}' created at:\n{app_env_dir}\n\n"
-        #     f"Files:\n  - {app_env_dir / (app_name + '.war')}\n"
-        #     f"  - {app_env_dir / 'Dockerfile'}\n"
-        #     f"  - {app_env_dir / 'server.xml'}",
-        # )
         popup_success(self.root, f"Local Environment has been created under ./local_env/local_app")
         self.next_btn.config(state=tk.NORMAL)
 

@@ -11,7 +11,6 @@ except ImportError:
     print("Please install PyYAML first: pip install pyyaml")
     sys.exit(1)
 
-# from window_components.yaml_parser_window import YamlParserWindow 
 from window_components.war_generator_window import WarGeneratorWindow 
 from window_components.resource_input_window import ResourceInputWindow
 
@@ -39,9 +38,6 @@ def main():
     setup_step.frame.pack(fill=tk.BOTH, expand=True)
 
     root.mainloop()
-
-    
-    
 
 
 if __name__ == "__main__":

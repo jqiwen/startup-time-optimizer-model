@@ -14,26 +14,16 @@ class ResourceInputWindow:
     def __init__(self, root: tk.Tk):
         self.root = root
         self.last_structured = None
-
         self.frame = tk.Frame(root)
-        # self.frame.pack(fill=tk.BOTH, expand=True)
 
-        # Title
         title = tk.Label(self.frame, text="Original Resource Input", font=("Times New Roman", 16, "bold"))
         title.pack(pady=10)
 
-        # # --- Container for resource rows ---
-        # center_frame = tk.Frame(self.frame)
-        # center_frame.pack(pady=5)
-
-        # --- Center frame for input rows ---
         center_frame = tk.Frame(self.frame)
         center_frame.pack(pady=5)
 
-        # Standard row height button style
         button_style = {"width": 15, "height": 3}
 
-        # ========== CPU Row ==========
         tk.Label(center_frame, text="CPU:", width=10, anchor="e", font=("Arial", 10, "bold")).grid(row=0, column=0, padx=20, pady=5)
 
         tk.Label(center_frame, text="Limit").grid(row=0, column=1)
@@ -46,8 +36,6 @@ class ResourceInputWindow:
         self.cpu_resv.insert(0, "0.25") 
         self.cpu_resv.grid(row=0, column=4, padx=5)
 
-
-        # ========== Memory Row ==========
         tk.Label(center_frame, text="Memory:", width=10, anchor="e",font=("Arial", 10, "bold")).grid(row=1, column=0, padx=20, pady=5)
 
         tk.Label(center_frame, text="Limit").grid(row=1, column=1)
@@ -60,7 +48,6 @@ class ResourceInputWindow:
         self.mem_resv.insert(0,"512M")
         self.mem_resv.grid(row=1, column=4, padx=5)
 
-                # Put Generate JSON button here (Heap row)
         self.btn_generate = tk.Button(
             center_frame,
             text="Generate JSON",
@@ -69,8 +56,6 @@ class ResourceInputWindow:
         )
         self.btn_generate.grid(row=1, column=5, padx=15)
 
-
-        # ========== Heap Row ==========
         tk.Label(center_frame, text="Heap:", width=10, anchor="e", font=("Arial", 10, "bold")).grid(row=2, column=0, padx=20, pady=5)
 
         tk.Label(center_frame, text="Limit").grid(row=2, column=1)
@@ -83,9 +68,6 @@ class ResourceInputWindow:
         self.heap_resv.insert(0,"512M")
         self.heap_resv.grid(row=2, column=4, padx=5)
 
-
-
-        # --- JSON Display ---
         text_frame = tk.Frame(self.frame)
         text_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(10, 5))
 
@@ -94,7 +76,6 @@ class ResourceInputWindow:
         )
         self.text_box.pack(fill=tk.BOTH, expand=True)
 
-        # --- Save Button ---
         btn_frame = tk.Frame(self.frame)
         btn_frame.pack(pady=10)
 

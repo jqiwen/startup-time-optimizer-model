@@ -6,7 +6,6 @@ def popup_success(root, message: str, on_close=None):
     popup.title("Success")
     popup.resizable(False, False)
 
-
     popup.update_idletasks()
     w, h = 420, 220
     x = root.winfo_x() + (root.winfo_width() - w) // 2
