@@ -22,7 +22,6 @@ def run_maven_in_docker(app_src_dir: Path) -> None:
         f"{abs_src}:/ws",
         "-w",
         "/ws",
-        # You already changed this to JDK 25:
         "maven:3.9-eclipse-temurin-25",
         "mvn",
         "-DskipTests",
@@ -53,24 +52,16 @@ def pick_candidate(candidates: List[Path], app_src_dir: Path) -> Path:
 
 
 def find_artifact(app_src_dir):
-    print("[INFO] Searching for artifacts under:", app_src_dir)
+    print("Searching for artifacts under:", app_src_dir)
 
     war_candidates = list(app_src_dir.rglob("target/*.war"))
-    for c in war_candidates:
-        print(f" [INFO] WAR candidate: {c}")
-
     if war_candidates:
         chosen = pick_candidate(war_candidates, app_src_dir)
-        print(f"[INFO] Selected WAR: {chosen}")
         return chosen, "war"
 
     jar_candidates = list(app_src_dir.rglob("target/*.jar"))
-    for c in jar_candidates:
-        print(f"  [INFO] JAR candidate: {c}")
-
     if jar_candidates:
         chosen = pick_candidate(jar_candidates, app_src_dir)
-        print(f"[INFO] Selected JAR: {chosen}")
         return chosen, "jar"
 
     raise FileNotFoundError(

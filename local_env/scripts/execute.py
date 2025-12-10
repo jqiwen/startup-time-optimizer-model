@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 
 from stable_baselines3 import PPO, DQN
 
-# import train  # 复用 TrainingMetricsCallback, moving_average 等
 from monitor import Monitor
 from analysis import Analysis
 from plan import Plan
@@ -158,7 +157,7 @@ class Execute:
             progress_bar=False,
         )
 
-        print( f"[PHASE B2] Switching DQN high-level to hierarchical real env for {self.online_steps} timesteps…" )
+        print( f"Switching DQN high-level to hierarchical real env for {self.online_steps} timesteps…" )
 
         dqn_model.set_env(hier_real_env)
         dqn_model.learning_rate = 1e-4
