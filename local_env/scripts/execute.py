@@ -136,16 +136,8 @@ class Execute:
         return ppo_offline_cb, dqn_offline_cb
 
 
-    def run_online_training(
-        self,
-        ppo_model: PPO,
-        dqn_model: DQN,
-        real_env,
-        hier_real_env,
-    ):
-        print(
-            f"Switching PPO low-level to real Docker environment for {self.online_steps} timesteps…"
-        )
+    def run_online_training( self, ppo_model, dqn_model, real_env, hier_real_env ):
+        print(f"Switching PPO low-level to real Docker environment for {self.online_steps} timesteps…" )
 
         ppo_model.set_env(real_env)
         ppo_model.learning_rate = 5e-5
@@ -166,11 +158,8 @@ class Execute:
             progress_bar=False,
         )
 
-        print(
-            f"[PHASE B2] Switching DQN high-level to hierarchical real env for {self.online_steps} timesteps…"
-        )
+        print( f"[PHASE B2] Switching DQN high-level to hierarchical real env for {self.online_steps} timesteps…" )
 
-        # Gentler DQN online
         dqn_model.set_env(hier_real_env)
         dqn_model.learning_rate = 1e-4
         dqn_model.buffer_size = 5000
@@ -273,12 +262,7 @@ class Execute:
             if cb.loss_proxy:
                 smoothed = _smooth(cb.loss_proxy)
                 steps = list(range(1, len(smoothed) + 1))
-                plt.plot(
-                    steps,
-                    smoothed,
-                    linewidth=1.5,
-                    label=label,
-                )
+                plt.plot(steps,smoothed, linewidth=1.5,label=label, )
         plt.xlabel("Timestep")
         plt.ylabel("Loss proxy (-reward)")
         plt.title("Loss curves(DB)")
@@ -288,7 +272,7 @@ class Execute:
         loss_offline_path = os.path.join(self.model_results_dir, "loss_offline.png")
         plt.savefig(loss_offline_path)
         plt.close()
-        print(f"[PLOT] Saved offline loss curves to {loss_offline_path}")
+        print(f"Saved offline loss curves to {loss_offline_path}")
 
         plt.figure(figsize=(10, 6))
         for label, cb in online_series:
@@ -305,7 +289,7 @@ class Execute:
         loss_online_path = os.path.join(self.model_results_dir, "loss_online.png")
         plt.savefig(loss_online_path)
         plt.close()
-        print(f"[PLOT] Saved online loss curves to {loss_online_path}")
+        print(f"Saved online loss curves to {loss_online_path}")
 
         plt.figure(figsize=(10, 6))
         for label, cb in offline_series:
@@ -363,9 +347,7 @@ class Execute:
         plt.grid(True)
         plt.legend()
         plt.tight_layout()
-        startup_online_path = os.path.join(
-            self.model_results_dir, "startup_time_online.png"
-        )
+        startup_online_path = os.path.join( self.model_results_dir, "startup_time_online.png" )
         plt.savefig(startup_online_path)
         plt.close()
         print(f"Saved online startup time curves to {startup_online_path}")
