@@ -6,37 +6,51 @@ import matplotlib.pyplot as plt
 
 from stable_baselines3 import PPO, DQN
 
-import train  # 复用 TrainingMetricsCallback, moving_average 等
+# import train  # 复用 TrainingMetricsCallback, moving_average 等
 from monitor import Monitor
 from analysis import Analysis
 from plan import Plan
+from stable_baselines3.common.callbacks import BaseCallback 
+import numpy as np
 
 WINDOW_SIZE = 50
 
+
+class TrainingMetricsCallback(BaseCallback):
+
+    def __init__(self, max_steps, phase):
+        super().__init__()
+        self.max_steps = max_steps
+        self.phase = phase
+        self.rewards = []
+        self.startup_times = []
+        self.loss_proxy = []
+
+    def _on_step(self):
+        rewards = self.locals.get("rewards")
+        infos = self.locals.get("infos")
+
+        r = float(rewards[0]) if rewards is not None else float("nan")
+        startup = None
+        if infos is not None and len(infos) > 0 and isinstance(infos[0], dict):
+            startup = infos[0].get("startup_seconds")
+
+        self.rewards.append(r)
+        self.startup_times.append(startup)
+        self.loss_proxy.append(-r)
+
+        if self.phase and self.num_timesteps % 1000 == 0:
+            print(f"[{self.phase}] Step {self.num_timesteps}, reward={r:.3f}, startup={startup}")
+
+        if self.max_steps is not None:
+            return self.n_calls < self.max_steps
+        return True
+
+
+
 class Execute:
-    """
-    Execute: 负责实际“执行”整个自适应训练流程。
 
-    - 调用 Monitor 收集数据
-    - 调用 Analysis 生成 action 集和 baseline
-    - 调用 Plan 创建环境和模型
-    - 运行四个阶段：
-        A1: PPO offline
-        A2: DQN offline
-        B1: PPO online (Real env)
-        B2: DQN online (Hierarchical + Real env)
-    - 保存模型和生成图表，并做一次最终评估
-    """
-
-    def __init__(
-        self,
-        monitor: Monitor,
-        analysis: Analysis,
-        planner: Plan,
-        model_results_dir: str,
-        offline_steps: int,
-        online_steps: int,
-    ) -> None:
+    def __init__( self, monitor, analysis, planner, model_results_dir, offline_steps, online_steps ) :
         self.monitor = monitor
         self.analysis = analysis
         self.planner = planner
@@ -44,20 +58,10 @@ class Execute:
         self.offline_steps = offline_steps
         self.online_steps = online_steps
 
-    # ------------------------------------------------------------------ #
-    # 核心入口
-    # ------------------------------------------------------------------ #
 
-    def run(self, csv_arg: str) -> None:
-        # 1) Monitor: load CSV
+    def run(self, csv_arg) :
         startup_df = self.monitor.load_csv(csv_arg)
-
-        # 2) Analysis: 构建 actions + baseline
-        actions, filtered_df, baseline_startup = self.analysis.build_actions_and_baseline(
-            startup_df
-        )
-
-        # 3) Plan: 构建 offline envs & models
+        actions, filtered_df, baseline_startup = self.analysis.build_actions_and_baseline(startup_df)
         offline_env, hier_offline_env = self.planner.build_offline_envs(
             actions,
             filtered_df,
@@ -65,25 +69,22 @@ class Execute:
             self.analysis.normalize_reward,
         )
 
-        # 重新用真正的 PPO 替换掉 Plan 中 dummy_ppo
         ppo_model, dqn_model = self.planner.build_models(
             offline_env, hier_offline_env
         )
-        # 需要让层次环境使用真正的 PPO 模型
         hier_offline_env.ppo_model = ppo_model
 
-        # 4) Execute: Phase A1 & A2 (offline)
+
         (
             ppo_offline_cb,
             dqn_offline_cb,
-        ) = self._run_offline_training(
+        ) = self.run_offline_training(
             ppo_model,
             dqn_model,
             offline_env,
             hier_offline_env,
         )
 
-        # 5) Plan: 构建 online envs
         real_env, hier_real_env = self.planner.build_online_envs(
             actions,
             baseline_startup,
@@ -91,18 +92,16 @@ class Execute:
             ppo_model,
         )
 
-        # 6) Execute: Phase B1 & B2 (online fine-tuning)
         (
             ppo_online_cb,
             dqn_online_cb,
-        ) = self._run_online_training(
+        ) = self.run_online_training(
             ppo_model,
             dqn_model,
             real_env,
             hier_real_env,
         )
 
-        # 7) Execute: 保存模型 + 作图
         self._save_models(ppo_model, dqn_model)
         self._plot_curves(
             ppo_offline_cb,
@@ -112,25 +111,12 @@ class Execute:
             self.analysis.normalize_reward,
         )
 
-        # 8) Execute: 最终评估一次
         self._evaluate_final_policy(dqn_model, hier_real_env, self.analysis.normalize_reward)
 
-    # ------------------------------------------------------------------ #
-    # Offline 训练
-    # ------------------------------------------------------------------ #
+    def run_offline_training(self, ppo_model, dqn_model,offline_env, hier_offline_env):
+        print( f"Training PPO (low-level) offline for {self.offline_steps} timesteps…" )
 
-    def _run_offline_training(
-        self,
-        ppo_model: PPO,
-        dqn_model: DQN,
-        offline_env,
-        hier_offline_env,
-    ):
-        print(
-            f"[PHASE A1] Training PPO (low-level) offline for {self.offline_steps} timesteps…"
-        )
-
-        ppo_offline_cb = train.TrainingMetricsCallback(phase="PPO_offline")
+        ppo_offline_cb = TrainingMetricsCallback(phase="PPO_offline")
         ppo_model.set_env(offline_env)
         ppo_model.learn(
             total_timesteps=self.offline_steps,
@@ -138,10 +124,8 @@ class Execute:
             callback=ppo_offline_cb,
         )
 
-        print(
-            f"[PHASE A2] Training DQN (high-level) offline for {self.offline_steps} timesteps…"
-        )
-        dqn_offline_cb = train.TrainingMetricsCallback(phase="DQN_offline")
+        print( f"Training DQN (high-level) offline for {self.offline_steps} timesteps…" )
+        dqn_offline_cb = TrainingMetricsCallback(phase="DQN_offline")
         dqn_model.set_env(hier_offline_env)
         dqn_model.learn(
             total_timesteps=self.offline_steps,
@@ -151,11 +135,8 @@ class Execute:
 
         return ppo_offline_cb, dqn_offline_cb
 
-    # ------------------------------------------------------------------ #
-    # Online 微调
-    # ------------------------------------------------------------------ #
 
-    def _run_online_training(
+    def run_online_training(
         self,
         ppo_model: PPO,
         dqn_model: DQN,
@@ -163,10 +144,9 @@ class Execute:
         hier_real_env,
     ):
         print(
-            f"[PHASE B1] Switching PPO low-level to real Docker environment for {self.online_steps} timesteps…"
+            f"Switching PPO low-level to real Docker environment for {self.online_steps} timesteps…"
         )
 
-        # Gentler PPO online
         ppo_model.set_env(real_env)
         ppo_model.learning_rate = 5e-5
         ppo_model.n_steps = 32
@@ -174,7 +154,7 @@ class Execute:
         ppo_model.gamma = 0.999
         ppo_model.clip_range = 0.1
 
-        ppo_online_cb = train.TrainingMetricsCallback(
+        ppo_online_cb = TrainingMetricsCallback(
             max_steps=self.online_steps,
             phase="PPO_online",
         )
@@ -200,7 +180,7 @@ class Execute:
         dqn_model.target_update_interval = 500
         dqn_model.gamma = 0.999
 
-        dqn_online_cb = train.TrainingMetricsCallback(
+        dqn_online_cb = TrainingMetricsCallback(
             max_steps=self.online_steps,
             phase="DQN_online",
         )
@@ -214,40 +194,29 @@ class Execute:
 
         return ppo_online_cb, dqn_online_cb
 
-    # ------------------------------------------------------------------ #
-    # 保存模型
-    # ------------------------------------------------------------------ #
 
-    def _save_models(self, ppo_model: PPO, dqn_model: DQN) -> None:
+    def _save_models(self, ppo_model, dqn_model):
         os.makedirs(self.model_results_dir, exist_ok=True)
         ppo_model_file = os.path.join(self.model_results_dir, "ppo_model.zip")
         dqn_model_file = os.path.join(self.model_results_dir, "dqn_model.zip")
 
         ppo_model.save(ppo_model_file)
-        print(f"[SAVE] Saved final low-level PPO model to {ppo_model_file}")
+        print(f"Saved final low-level PPO model to {ppo_model_file}")
 
         dqn_model.save(dqn_model_file)
-        print(f"[SAVE] Saved final high-level DQN model to {dqn_model_file}")
+        print(f"Saved final high-level DQN model to {dqn_model_file}")
 
-    # ------------------------------------------------------------------ #
-    # 画图
-    # ------------------------------------------------------------------ #
+    def moving_average(values, window):
+        if not values:
+            return []
+        arr = np.asarray(values, dtype=float)
+        if window <= 1 or window > len(arr):
+            return arr
+        kernel = np.ones(window) / window
+        return np.convolve(arr, kernel, mode="valid")
 
-        # ------------------------------------------------------------------ #
-    # 画图（离线 / 在线分开）
-    # ------------------------------------------------------------------ #
 
-        # ------------------------------------------------------------------ #
-    # 画图（离线 / 在线分开）
-    # ------------------------------------------------------------------ #
-    def _plot_curves(
-        self,
-        ppo_offline_cb,
-        dqn_offline_cb,
-        ppo_online_cb,
-        dqn_online_cb,
-        normalize_reward: bool,
-    ) -> None:
+    def _plot_curves( self, ppo_offline_cb, dqn_offline_cb, ppo_online_cb, dqn_online_cb, normalize_reward,):
         os.makedirs(self.model_results_dir, exist_ok=True)
 
         offline_series = [
@@ -259,26 +228,18 @@ class Execute:
             ("Hierarchical Model(PPO+DQN)", dqn_online_cb),
         ]
 
-        # Helper to choose window ~= timesteps / 100 and smooth
-        def _smooth(values: List[float]) -> List[float]:
+        def _smooth(values):
             if not values:
                 return []
-            # e.g. 5000 steps -> window 50; also make sure window >= 5
             window = max(5, len(values) // 100)
-            return train.moving_average(values, window=window)
+            return self.moving_average(values, window=window)
 
-        # ---------- Reward curves: Offline ----------
         plt.figure(figsize=(10, 6))
         for label, cb in offline_series:
             if cb.rewards:
                 smoothed = _smooth(cb.rewards)
                 steps = list(range(1, len(smoothed) + 1))
-                plt.plot(
-                    steps,
-                    smoothed,
-                    linewidth=1.5,
-                    label=label,
-                )
+                plt.plot( steps, smoothed, linewidth=1.5, label=label )
         plt.xlabel("Timestep")
         plt.ylabel("Reward (normalized)" if normalize_reward else "Reward")
         plt.title("Reward curves(DB)")
@@ -288,20 +249,14 @@ class Execute:
         reward_offline_path = os.path.join(self.model_results_dir, "reward_offline.png")
         plt.savefig(reward_offline_path)
         plt.close()
-        print(f"[PLOT] Saved offline reward curves to {reward_offline_path}")
+        print(f"Saved offline reward curves to {reward_offline_path}")
 
-        # ---------- Reward curves: Online ----------
         plt.figure(figsize=(10, 6))
         for label, cb in online_series:
             if cb.rewards:
                 smoothed = _smooth(cb.rewards)
                 steps = list(range(1, len(smoothed) + 1))
-                plt.plot(
-                    steps,
-                    smoothed,
-                    linewidth=1.5,
-                    label=label,
-                )
+                plt.plot(steps, smoothed, linewidth=1.5, label=label, )
         plt.xlabel("Timestep")
         plt.ylabel("Reward (normalized)" if normalize_reward else "Reward")
         plt.title("Reward curves(Loacl Env)")
@@ -311,9 +266,8 @@ class Execute:
         reward_online_path = os.path.join(self.model_results_dir, "reward_online.png")
         plt.savefig(reward_online_path)
         plt.close()
-        print(f"[PLOT] Saved online reward curves to {reward_online_path}")
+        print(f"Saved online reward curves to {reward_online_path}")
 
-        # ---------- Loss curves (-reward): Offline ----------
         plt.figure(figsize=(10, 6))
         for label, cb in offline_series:
             if cb.loss_proxy:
@@ -336,18 +290,12 @@ class Execute:
         plt.close()
         print(f"[PLOT] Saved offline loss curves to {loss_offline_path}")
 
-        # ---------- Loss curves (-reward): Online ----------
         plt.figure(figsize=(10, 6))
         for label, cb in online_series:
             if cb.loss_proxy:
                 smoothed = _smooth(cb.loss_proxy)
                 steps = list(range(1, len(smoothed) + 1))
-                plt.plot(
-                    steps,
-                    smoothed,
-                    linewidth=1.5,
-                    label=label,
-                )
+                plt.plot( steps, smoothed, linewidth=1.5, label=label)
         plt.xlabel("Timestep")
         plt.ylabel("Loss proxy (-reward)")
         plt.title("Loss curves(Loacl Env)")
@@ -359,7 +307,6 @@ class Execute:
         plt.close()
         print(f"[PLOT] Saved online loss curves to {loss_online_path}")
 
-        # ---------- Startup time curves: Offline ----------
         plt.figure(figsize=(10, 6))
         for label, cb in offline_series:
             valid_points = []
@@ -388,14 +335,11 @@ class Execute:
         plt.grid(True)
         plt.legend()
         plt.tight_layout()
-        startup_offline_path = os.path.join(
-            self.model_results_dir, "startup_time_offline.png"
-        )
+        startup_offline_path = os.path.join( self.model_results_dir, "startup_time_offline.png" )
         plt.savefig(startup_offline_path)
         plt.close()
-        print(f"[PLOT] Saved offline startup time curves to {startup_offline_path}")
+        print(f"Saved offline startup time curves to {startup_offline_path}")
 
-        # ---------- Startup time curves: Online ----------
         plt.figure(figsize=(10, 6))
         for label, cb in online_series:
             valid_points = []
@@ -412,12 +356,7 @@ class Execute:
                 _, s_vals = zip(*valid_points)
                 smoothed_vals = _smooth(list(s_vals))
                 smoothed_steps = list(range(1, len(smoothed_vals) + 1))
-                plt.plot(
-                    smoothed_steps,
-                    smoothed_vals,
-                    linewidth=1.5,
-                    label=label,
-                )
+                plt.plot( smoothed_steps,smoothed_vals,linewidth=1.5,label=label,)
         plt.xlabel("Timestep")
         plt.ylabel("Startup time (s)")
         plt.title("Startup time curves(Loacl Env)")
@@ -429,16 +368,11 @@ class Execute:
         )
         plt.savefig(startup_online_path)
         plt.close()
-        print(f"[PLOT] Saved online startup time curves to {startup_online_path}")
+        print(f"Saved online startup time curves to {startup_online_path}")
 
 
-
-    # ------------------------------------------------------------------ #
-    # 最终评估
-    # ------------------------------------------------------------------ #
-
-    def _evaluate_final_policy(self, dqn_model: DQN, eval_env, normalize_reward: bool) -> None:
-        print("[EVAL] Evaluating final hierarchical policy once on real environment…")
+    def _evaluate_final_policy(self, dqn_model, eval_env, normalize_reward):
+        print("Evaluating final hierarchical policy once on real environment…")
 
         obs, _ = eval_env.reset()
         hi_action, _ = dqn_model.predict(obs, deterministic=True)
@@ -447,7 +381,7 @@ class Execute:
         config = info.get("config")
         startup = info.get("startup_seconds")
 
-        print("[EVAL] Final suggested configuration from hierarchical policy:")
+        print("Final suggested configuration from hierarchical policy:")
         if config is not None:
             cpu, mem, heap = config
             print(f"  CPU:    {cpu}")
