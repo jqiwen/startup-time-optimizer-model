@@ -1,22 +1,11 @@
-# execute.py
 import os
-from typing import List
-
 import matplotlib.pyplot as plt
-
-from stable_baselines3 import PPO, DQN
-
-from monitor import Monitor
-from analysis import Analysis
-from plan import Plan
 from stable_baselines3.common.callbacks import BaseCallback 
 import numpy as np
 
 WINDOW_SIZE = 50
 
-
 class TrainingMetricsCallback(BaseCallback):
-
     def __init__(self, max_steps, phase):
         super().__init__()
         self.max_steps = max_steps
@@ -29,7 +18,10 @@ class TrainingMetricsCallback(BaseCallback):
         rewards = self.locals.get("rewards")
         infos = self.locals.get("infos")
 
-        r = float(rewards[0]) if rewards is not None else float("nan")
+        if rewards is not None:
+            r = float(rewards[0])
+        else:
+            r = float("nan")
         startup = None
         if infos is not None and len(infos) > 0 and isinstance(infos[0], dict):
             startup = infos[0].get("startup_seconds")
@@ -48,15 +40,13 @@ class TrainingMetricsCallback(BaseCallback):
 
 
 class Execute:
-
-    def __init__( self, monitor, analysis, planner, model_results_dir, offline_steps, online_steps ) :
+    def __init__( self, monitor, analysis, planner, model_results_dir, offline_steps, online_steps) :
         self.monitor = monitor
         self.analysis = analysis
         self.planner = planner
         self.model_results_dir = model_results_dir
         self.offline_steps = offline_steps
         self.online_steps = online_steps
-
 
     def run(self, csv_arg) :
         startup_df = self.monitor.load_csv(csv_arg)
@@ -72,7 +62,6 @@ class Execute:
             offline_env, hier_offline_env
         )
         hier_offline_env.ppo_model = ppo_model
-
 
         (
             ppo_offline_cb,
@@ -131,25 +120,21 @@ class Execute:
             progress_bar=False,
             callback=dqn_offline_cb,
         )
-
         return ppo_offline_cb, dqn_offline_cb
 
 
-    def run_online_training( self, ppo_model, dqn_model, real_env, hier_real_env ):
+    def run_online_training( self, ppo_model, dqn_model, real_env, hier_real_env):
         print(f"Switching PPO low-level to real Docker environment for {self.online_steps} timesteps…" )
-
         ppo_model.set_env(real_env)
         ppo_model.learning_rate = 5e-5
         ppo_model.n_steps = 32
         ppo_model.batch_size = 16
         ppo_model.gamma = 0.999
         ppo_model.clip_range = 0.1
-
         ppo_online_cb = TrainingMetricsCallback(
             max_steps=self.online_steps,
             phase="PPO_online",
         )
-
         ppo_model.learn(
             total_timesteps=self.online_steps,
             reset_num_timesteps=False,
@@ -158,7 +143,6 @@ class Execute:
         )
 
         print( f"Switching DQN high-level to hierarchical real env for {self.online_steps} timesteps…" )
-
         dqn_model.set_env(hier_real_env)
         dqn_model.learning_rate = 1e-4
         dqn_model.buffer_size = 5000
@@ -167,19 +151,16 @@ class Execute:
         dqn_model.exploration_final_eps = 0.02
         dqn_model.target_update_interval = 500
         dqn_model.gamma = 0.999
-
         dqn_online_cb = TrainingMetricsCallback(
             max_steps=self.online_steps,
             phase="DQN_online",
         )
-
         dqn_model.learn(
             total_timesteps=self.online_steps,
             reset_num_timesteps=False,
             callback=dqn_online_cb,
             progress_bar=False,
         )
-
         return ppo_online_cb, dqn_online_cb
 
 
@@ -190,7 +171,6 @@ class Execute:
 
         ppo_model.save(ppo_model_file)
         print(f"Saved final low-level PPO model to {ppo_model_file}")
-
         dqn_model.save(dqn_model_file)
         print(f"Saved final high-level DQN model to {dqn_model_file}")
 
@@ -203,8 +183,7 @@ class Execute:
         kernel = np.ones(window) / window
         return np.convolve(arr, kernel, mode="valid")
 
-
-    def _plot_curves( self, ppo_offline_cb, dqn_offline_cb, ppo_online_cb, dqn_online_cb, normalize_reward,):
+    def _plot_curves( self, ppo_offline_cb, dqn_offline_cb, ppo_online_cb, dqn_online_cb, normalize_reward):
         os.makedirs(self.model_results_dir, exist_ok=True)
 
         offline_series = [
@@ -234,10 +213,10 @@ class Execute:
         plt.grid(True)
         plt.legend()
         plt.tight_layout()
-        reward_offline_path = os.path.join(self.model_results_dir, "reward_offline.png")
+        reward_offline_path = os.path.join(self.model_results_dir, "reward_db.png")
         plt.savefig(reward_offline_path)
         plt.close()
-        print(f"Saved offline reward curves to {reward_offline_path}")
+        print(f"Saved database reward curves to {reward_offline_path}")
 
         plt.figure(figsize=(10, 6))
         for label, cb in online_series:
@@ -251,10 +230,10 @@ class Execute:
         plt.grid(True)
         plt.legend()
         plt.tight_layout()
-        reward_online_path = os.path.join(self.model_results_dir, "reward_online.png")
+        reward_online_path = os.path.join(self.model_results_dir, "reward_real_env.png")
         plt.savefig(reward_online_path)
         plt.close()
-        print(f"Saved online reward curves to {reward_online_path}")
+        print(f"Saved real environment reward curves to {reward_online_path}")
 
         plt.figure(figsize=(10, 6))
         for label, cb in offline_series:
@@ -268,10 +247,10 @@ class Execute:
         plt.grid(True)
         plt.legend()
         plt.tight_layout()
-        loss_offline_path = os.path.join(self.model_results_dir, "loss_offline.png")
+        loss_offline_path = os.path.join(self.model_results_dir, "loss_db.png")
         plt.savefig(loss_offline_path)
         plt.close()
-        print(f"Saved offline loss curves to {loss_offline_path}")
+        print(f"Saved db loss curves to {loss_offline_path}")
 
         plt.figure(figsize=(10, 6))
         for label, cb in online_series:
@@ -285,10 +264,10 @@ class Execute:
         plt.grid(True)
         plt.legend()
         plt.tight_layout()
-        loss_online_path = os.path.join(self.model_results_dir, "loss_online.png")
+        loss_online_path = os.path.join(self.model_results_dir, "loss_real_env.png")
         plt.savefig(loss_online_path)
         plt.close()
-        print(f"Saved online loss curves to {loss_online_path}")
+        print(f"Saved real environment loss curves to {loss_online_path}")
 
         plt.figure(figsize=(10, 6))
         for label, cb in offline_series:
@@ -318,10 +297,10 @@ class Execute:
         plt.grid(True)
         plt.legend()
         plt.tight_layout()
-        startup_offline_path = os.path.join( self.model_results_dir, "startup_time_offline.png" )
+        startup_offline_path = os.path.join( self.model_results_dir, "startup_time_db.png" )
         plt.savefig(startup_offline_path)
         plt.close()
-        print(f"Saved offline startup time curves to {startup_offline_path}")
+        print(f"Saved db startup time curves to {startup_offline_path}")
 
         plt.figure(figsize=(10, 6))
         for label, cb in online_series:
@@ -346,34 +325,27 @@ class Execute:
         plt.grid(True)
         plt.legend()
         plt.tight_layout()
-        startup_online_path = os.path.join( self.model_results_dir, "startup_time_online.png" )
+        startup_online_path = os.path.join( self.model_results_dir, "startup_time_real_env.png" )
         plt.savefig(startup_online_path)
         plt.close()
-        print(f"Saved online startup time curves to {startup_online_path}")
+        print(f"Saved real environment startup time curves to {startup_online_path}")
 
 
     def _evaluate_final_policy(self, dqn_model, eval_env, normalize_reward):
-        print("Evaluating final hierarchical policy once on real environment…")
-
+        print("Evaluating final hierarchical policy once on real environment")
         obs, _ = eval_env.reset()
         hi_action, _ = dqn_model.predict(obs, deterministic=True)
         obs2, reward, done, truncated, info = eval_env.step(int(hi_action))
-
         config = info.get("config")
         startup = info.get("startup_seconds")
 
-        print("Final suggested configuration from hierarchical policy:")
+        print("Final suggested configuration from hierarchical model:")
         if config is not None:
             cpu, mem, heap = config
             print(f"  CPU:    {cpu}")
             print(f"  Memory: {mem}")
             print(f"  Heap:   {heap}")
-        else:
-            print("  Config: N/A")
 
         if startup is not None:
-            print(f"  Measured startup time: {startup:.3f} seconds")
-        else:
-            print("  Measured startup time: N/A (invalid configuration or measurement failure)")
-
-        print(f"  Final reward (normalized={normalize_reward}): {reward:.3f}")
+            print(f"Measured startup time: {startup:.3f} seconds")
+        print(f"Final reward (normalized={normalize_reward}): {reward:.3f}")

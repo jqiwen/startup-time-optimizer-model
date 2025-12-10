@@ -1,15 +1,4 @@
-import os
-import sys
-import json
 import tkinter as tk
-from tkinter import filedialog, messagebox, scrolledtext
-from pathlib import Path
-
-try:
-    import yaml
-except ImportError:
-    print("Please install PyYAML first: pip install pyyaml")
-    sys.exit(1)
 
 from window_components.war_generator_window import WarGeneratorWindow 
 from window_components.resource_input_window import ResourceInputWindow

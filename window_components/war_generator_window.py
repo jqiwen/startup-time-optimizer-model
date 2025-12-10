@@ -25,9 +25,7 @@ class WarGeneratorWindow:
 
         self.info_label = tk.Label(
             self.frame,
-            text=(
-                "Files will be generated under ./local_env/local_app/"
-            ),
+            text=("Files will be generated under ./local_env/local_app/"),
             fg="gray",
             wraplength=550,
             justify="left",
@@ -57,9 +55,7 @@ class WarGeneratorWindow:
 
         self.info_label = tk.Label(
             self.frame,
-            text=(
-                "Step 1/2: Build the application and generate the environment under ./local_env/local_app/"
-            ),
+            text=("Build the application and generate the environment under ./local_env/local_app/"),
             fg="gray",
             wraplength=550,
             justify="left",

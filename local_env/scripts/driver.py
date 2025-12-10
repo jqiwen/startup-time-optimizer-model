@@ -1,7 +1,5 @@
-# driver.py
 import argparse
 import os
-
 from monitor import Monitor
 from analysis import Analysis
 from plan import Plan
@@ -9,59 +7,45 @@ from execute import Execute
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Hierarchical RL training for AcmeAir with MAPE-style decomposition."
-    )
+    parser = argparse.ArgumentParser(description="Hierarchical RL training with MAPE-K Architecture.")
 
     parser.add_argument(
         "--csv",
         type=str,
-        default="startup_data.csv",
-        help="CSV file with sweep data (must contain cpus, memory, startup_seconds).",
+        default="startup_data.csv"
     )
     parser.add_argument(
         "--baseline",
         type=str,
-        default="median",
-        help="Baseline mode: 'mean', 'median', 'min', or a numeric value.",
+        default="median"
     )
     parser.add_argument(
         "--offline-steps",
         type=int,
-        default=5000,
-        help="Timesteps for offline training (CSV-only) for each level.",
+        default=5000
     )
     parser.add_argument(
         "--online-steps",
         type=int,
-        default=20,
-        help="Timesteps for online fine-tuning (real Docker environment) for each level.",
+        default=20
     )
     parser.add_argument(
         "--cpu-max",
         type=float,
-        default=None,
-        help="Max CPU cores allowed (e.g. 2.0). Only configs with cpus <= cpu_max are used.",
+        default=None
     )
     parser.add_argument(
         "--mem-max",
         type=str,
-        default=None,
-        help="Max memory allowed (e.g. '1G', '768M'). Only configs with memory <= mem_max are used.",
+        default=None
     )
     parser.add_argument(
         "--no-normalize-reward",
-        action="store_true",
-        help=(
-            "Disable reward normalization. By default, rewards are divided by "
-            "the baseline startup time to keep them in a stable range."
-        ),
+        action="store_true"
     )
 
     args = parser.parse_args()
     normalize_reward = not args.no_normalize_reward
-
-    # model_results 目录：../model_results
     project_dir = os.path.dirname(__file__)
     model_results_dir = os.path.abspath(os.path.join(project_dir, "..", "model_results"))
 

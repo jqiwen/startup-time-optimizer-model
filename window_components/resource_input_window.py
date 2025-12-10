@@ -1,8 +1,7 @@
 import os
-import sys
 import json
 import tkinter as tk
-from tkinter import filedialog, messagebox, scrolledtext
+from tkinter import messagebox, scrolledtext
 from pathlib import Path
 
 from .popup_success import popup_success
